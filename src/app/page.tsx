@@ -40,6 +40,10 @@ export default function Home() {
       label: '👾 像素风格 (白色背景)',
       prompt: 'refer to image 2, convert image 1 into a pixel art. Try to use as few pixels as possible while fully preserving the original design and ensuring the final result has white background.',
     },
+    {
+      label: '👾 像素精简版',
+      prompt: 'refer to image 2, convert image 1 into a pixel art. Try to use as few pixels as possible.尽可能精简的同时，保留动作和特征',
+    },
   ];
 
   // Load API key and last prompt from localStorage on mount
