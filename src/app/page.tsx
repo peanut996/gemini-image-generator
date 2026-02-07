@@ -11,8 +11,7 @@ interface GeneratedImage {
 export default function Home() {
   const [apiKey, setApiKey] = useState('');
   const [prompt, setPrompt] = useState('');
-  const [referenceImage, setReferenceImage] = useState<string | null>(null);
-  const [referenceImageMime, setReferenceImageMime] = useState<string>('');
+  const [referenceImages, setReferenceImages] = useState<Array<{data: string; mimeType: string}>>([]);
   const [imageCount, setImageCount] = useState(1);
   const [loading, setLoading] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
@@ -39,16 +38,23 @@ export default function Home() {
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setReferenceImageMime(file.type);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = (reader.result as string).split(',')[1];
-        setReferenceImage(base64);
-      };
-      reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (files) {
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          setReferenceImages(prev => [...prev, { data: base64, mimeType: file.type }]);
+        };
+        reader.readAsDataURL(file);
+      });
+      // Reset input to allow selecting same files again
+      e.target.value = '';
     }
+  };
+
+  const removeImage = (index: number) => {
+    setReferenceImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const generateImages = async () => {
@@ -92,17 +98,18 @@ export default function Home() {
         try {
           let result;
           
-          if (referenceImage && referenceImageMime) {
+          if (referenceImages.length > 0) {
             // 如果有参考图像，一起发送
-            result = await model.generateContent([
-              {
+            const contentParts = [
+              ...referenceImages.map(img => ({
                 inlineData: {
-                  data: referenceImage,
-                  mimeType: referenceImageMime,
+                  data: img.data,
+                  mimeType: img.mimeType,
                 },
-              },
+              })),
               fullPrompt + (imageCount > 1 ? ` (variation ${i + 1})` : ''),
-            ]);
+            ];
+            result = await model.generateContent(contentParts);
           } else {
             result = await model.generateContent(
               fullPrompt + (imageCount > 1 ? ` (variation ${i + 1})` : '')
@@ -232,15 +239,16 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Reference Image */}
+          {/* Reference Images */}
           <div className="mt-6">
             <label className="block text-sm font-medium mb-2 text-purple-300">
-              📷 参考图像 (可选)
+              📷 参考图像 (可选，支持多张)
             </label>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleImageUpload}
                 className="hidden"
                 id="reference-image"
@@ -251,25 +259,34 @@ export default function Home() {
               >
                 <span>选择图片</span>
               </label>
-              {referenceImage && (
-                <div className="flex items-center gap-2">
-                  <img
-                    src={`data:${referenceImageMime};base64,${referenceImage}`}
-                    alt="Reference"
-                    className="w-12 h-12 object-cover rounded-lg"
-                  />
-                  <button
-                    onClick={() => {
-                      setReferenceImage(null);
-                      setReferenceImageMime('');
-                    }}
-                    className="text-red-400 hover:text-red-300 text-sm"
-                  >
-                    移除
-                  </button>
-                </div>
+              {referenceImages.length > 0 && (
+                <button
+                  onClick={() => setReferenceImages([])}
+                  className="text-red-400 hover:text-red-300 text-sm"
+                >
+                  清空全部
+                </button>
               )}
             </div>
+            {referenceImages.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {referenceImages.map((img, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={`data:${img.mimeType};base64,${img.data}`}
+                      alt={`Reference ${index + 1}`}
+                      className="w-16 h-16 object-cover rounded-lg"
+                    />
+                    <button
+                      onClick={() => removeImage(index)}
+                      className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-400 text-white w-5 h-5 rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
