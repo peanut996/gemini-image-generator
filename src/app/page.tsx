@@ -42,11 +42,15 @@ export default function Home() {
     },
   ];
 
-  // Load API key from localStorage on mount
+  // Load API key and last prompt from localStorage on mount
   useEffect(() => {
     const savedKey = localStorage.getItem('gemini-api-key');
     if (savedKey) {
       setApiKey(savedKey);
+    }
+    const savedPrompt = localStorage.getItem('gemini-last-prompt');
+    if (savedPrompt) {
+      setPrompt(savedPrompt);
     }
   }, []);
 
@@ -58,6 +62,12 @@ export default function Home() {
     } else {
       localStorage.removeItem('gemini-api-key');
     }
+  };
+
+  // Save prompt to localStorage when it changes
+  const handlePromptChange = (value: string) => {
+    setPrompt(value);
+    localStorage.setItem('gemini-last-prompt', value);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,7 +246,7 @@ export default function Home() {
           </label>
           <textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) => handlePromptChange(e.target.value)}
             placeholder="描述你想要生成的图像，例如：一只可爱的柴犬在樱花树下"
             rows={4}
             className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none text-gray-900"
@@ -248,7 +258,7 @@ export default function Home() {
               {presetPrompts.map((preset, index) => (
                 <button
                   key={index}
-                  onClick={() => setPrompt(preset.prompt)}
+                  onClick={() => handlePromptChange(preset.prompt)}
                   className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition border border-gray-200"
                 >
                   {preset.label}
