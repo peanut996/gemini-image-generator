@@ -143,8 +143,11 @@ export default function Home() {
         })
       );
 
-      const results = await Promise.all(promises);
-      const successfulImages = results.filter((img): img is GeneratedImage => img !== null);
+      const results = await Promise.allSettled(promises);
+      const successfulImages = results
+        .filter((r): r is PromiseFulfilledResult<GeneratedImage | null> => r.status === 'fulfilled')
+        .map(r => r.value)
+        .filter((img): img is GeneratedImage => img !== null);
 
       if (successfulImages.length === 0) {
         setError('无法生成图像，请尝试修改提示词或稍后重试');
