@@ -18,6 +18,27 @@ export default function Home() {
   const [error, setError] = useState('');
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [completedCount, setCompletedCount] = useState(0);
+  const [showPresetImages, setShowPresetImages] = useState(false);
+
+  const presetImages = [
+    { src: '/presets/pixel-wedding-main.jpg', label: '像素婚礼' },
+    { src: '/presets/pixel-couple-1.jpg', label: '像素情侣1' },
+    { src: '/presets/pixel-couple-2.jpg', label: '像素情侣2' },
+    { src: '/presets/pixel-couple-3.jpg', label: '像素情侣3' },
+    { src: '/presets/pixel-selfie.jpg', label: '像素自拍' },
+    { src: '/presets/pixel-wedding-1.jpg', label: '像素婚礼2' },
+    { src: '/presets/pixel-wedding-cn-1.jpg', label: '中式婚礼1' },
+    { src: '/presets/pixel-wedding-cn-2.jpg', label: '中式婚礼2' },
+    { src: '/presets/pixel-ancient.jpg', label: '像素古风' },
+    { src: '/presets/pixel-girls.jpg', label: '像素闺蜜' },
+    { src: '/presets/pixel-cat-1.jpg', label: '像素猫1' },
+    { src: '/presets/pixel-cat-2.jpg', label: '像素猫2' },
+    { src: '/presets/pixel-dog.jpg', label: '像素狗' },
+    { src: '/presets/anime-sticker-1.jpg', label: '二次元贴纸1' },
+    { src: '/presets/anime-sticker-2.jpg', label: '二次元贴纸2' },
+    { src: '/presets/anime-sticker-girl.jpg', label: '二次元女生' },
+    { src: '/presets/chibi-couple.jpg', label: 'Q版情侣' },
+  ];
 
   const presetPrompts = [
     {
@@ -91,6 +112,21 @@ export default function Home() {
 
   const removeImage = (index: number) => {
     setReferenceImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addPresetImage = async (src: string) => {
+    try {
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        setReferenceImages(prev => [...prev, { data: base64, mimeType: blob.type }]);
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error('Failed to load preset image:', err);
+    }
   };
 
   const generateSingleImage = async (
@@ -332,6 +368,12 @@ export default function Home() {
               >
                 <span>选择图片</span>
               </label>
+              <button
+                onClick={() => setShowPresetImages(true)}
+                className="bg-blue-50 border border-blue-200 rounded-lg px-6 py-3 hover:bg-blue-100 transition flex items-center gap-2 text-blue-600"
+              >
+                <span>📁 预设图片</span>
+              </button>
               {referenceImages.length > 0 && (
                 <button
                   onClick={() => setReferenceImages([])}
@@ -431,6 +473,47 @@ export default function Home() {
           Powered by Gemini 3 Pro Image • 客户端直连无超时限制 ✨
         </p>
       </div>
+
+      {/* Preset Images Modal */}
+      {showPresetImages && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowPresetImages(false)}>
+          <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">选择预设图片</h3>
+              <button
+                onClick={() => setShowPresetImages(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">点击图片添加到参考图列表</p>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {presetImages.map((preset, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    addPresetImage(preset.src);
+                    setShowPresetImages(false);
+                  }}
+                  className="group relative aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition"
+                >
+                  <img
+                    src={preset.src}
+                    alt={preset.label}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-end justify-center">
+                    <span className="text-white text-xs pb-2 opacity-0 group-hover:opacity-100 transition">
+                      {preset.label}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
