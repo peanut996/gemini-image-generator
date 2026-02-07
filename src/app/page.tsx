@@ -77,7 +77,7 @@ export default function Home() {
       
       // 使用 gemini-2.0-flash-exp 模型进行图像生成
       const model = genAI.getGenerativeModel({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-3-pro-image-preview',
         generationConfig: {
           responseModalities: ['image', 'text'],
         } as any,
@@ -165,7 +165,7 @@ export default function Home() {
         <h1 className="text-3xl md:text-4xl font-bold text-center mb-2 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
           Gemini 图像生成器
         </h1>
-        <p className="text-center text-gray-400 mb-8">使用 Google Gemini 2.0 Flash 生成图像 • 客户端直连</p>
+        <p className="text-center text-gray-400 mb-8">使用 Gemini 3 Pro Image 生成图像 • 客户端直连</p>
 
         {/* API Key Input */}
         <div className="bg-gray-800/50 rounded-xl p-6 mb-6 backdrop-blur-sm border border-gray-700">
@@ -352,7 +352,7 @@ export default function Home() {
 
         {/* Footer */}
         <p className="text-center text-gray-500 text-sm mt-8">
-          Powered by Google Gemini 2.0 Flash • 客户端直连无超时限制 ✨
+          Powered by Gemini 3 Pro Image • 客户端直连无超时限制 ✨
         </p>
       </div>
     </div>
