@@ -19,6 +19,29 @@ export default function Home() {
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [completedCount, setCompletedCount] = useState(0);
 
+  const presetPrompts = [
+    {
+      label: '🎨 二次元贴纸',
+      prompt: '参考图二的绘图风格，把图一变成帅气美丽又可爱的二次元sticker吧，要确保完全还原图一人物的服饰、发型和动作',
+    },
+    {
+      label: '👾 像素风格',
+      prompt: 'refer to image 2, convert image 1 into a pixel art. Try to use as few pixels as possible.确保完全还原图一人物的动作服饰和发型',
+    },
+    {
+      label: '👾 像素风格 (保留设计)',
+      prompt: 'refer to image 2, convert image 1 into a pixel art. Try to use as few pixels as possible while fully preserving the original design. 确保完全还原图一人物的动作服饰和发型',
+    },
+    {
+      label: '🌾 星露谷风格',
+      prompt: '参考图二的风格，把图一也变成星露谷小人吧，最终的出图越小越好',
+    },
+    {
+      label: '👾 像素风格 (白色背景)',
+      prompt: 'refer to image 2, convert image 1 into a pixel art. Try to use as few pixels as possible while fully preserving the original design and ensuring the final result has white background.',
+    },
+  ];
+
   // Load API key from localStorage on mount
   useEffect(() => {
     const savedKey = localStorage.getItem('gemini-api-key');
@@ -218,6 +241,21 @@ export default function Home() {
             rows={4}
             className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none text-gray-900"
           />
+          {/* Preset Prompts */}
+          <div className="mt-3">
+            <p className="text-xs text-gray-500 mb-2">快捷预设：</p>
+            <div className="flex flex-wrap gap-2">
+              {presetPrompts.map((preset, index) => (
+                <button
+                  key={index}
+                  onClick={() => setPrompt(preset.prompt)}
+                  className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full transition border border-gray-200"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Settings */}
