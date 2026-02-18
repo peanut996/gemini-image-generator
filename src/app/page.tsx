@@ -171,6 +171,10 @@ export default function Home() {
       }
     } catch (genError) {
       console.error(`Error generating image ${variationIndex + 1}:`, genError);
+      const errMsg = genError instanceof Error
+        ? `Image ${variationIndex + 1}: ${genError.message}\n${genError.stack ?? ''}`
+        : `Image ${variationIndex + 1}: ${String(genError)}`;
+      throw new Error(errMsg);
     }
     return null;
   };
@@ -217,17 +221,22 @@ export default function Home() {
       );
 
       const results = await Promise.allSettled(promises);
+      const errors = results
+        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        .map(r => r.reason instanceof Error ? `${r.reason.message}\n${r.reason.stack ?? ''}` : String(r.reason));
       const successfulImages = results
         .filter((r): r is PromiseFulfilledResult<GeneratedImage | null> => r.status === 'fulfilled')
         .map(r => r.value)
         .filter((img): img is GeneratedImage => img !== null);
 
-      if (successfulImages.length === 0) {
+      if (successfulImages.length === 0 && errors.length === 0) {
         setError('无法生成图像，请尝试修改提示词或稍后重试');
+      } else if (errors.length > 0) {
+        setError(errors.join('\n\n'));
       }
     } catch (err) {
       console.error('Generation error:', err);
-      setError(err instanceof Error ? err.message : '生成失败');
+      setError(err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : '生成失败');
     } finally {
       setLoading(false);
     }
@@ -436,7 +445,7 @@ export default function Home() {
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-red-600">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-red-600 whitespace-pre-wrap break-all text-sm font-mono">
             ❌ {error}
           </div>
         )}
