@@ -8,6 +8,20 @@ interface GeneratedImage {
   mimeType: string;
 }
 
+interface UsageInfo {
+  promptTokenCount: number;
+  candidatesTokenCount: number;
+  totalTokenCount: number;
+  imageCount: number;
+  cost: number;
+}
+
+// 定价表 (USD per 1M tokens)
+const MODEL_PRICING: Record<string, { input: number; outputText: number; outputImage: number }> = {
+  'gemini-3.1-flash-image-preview': { input: 0.25, outputText: 1.50, outputImage: 60.00 },
+  'gemini-3-pro-image-preview': { input: 2.00, outputText: 12.00, outputImage: 120.00 },
+};
+
 export default function Home() {
   const [apiKey, setApiKey] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -20,6 +34,7 @@ export default function Home() {
   const [completedCount, setCompletedCount] = useState(0);
   const [showPresetImages, setShowPresetImages] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-3-pro-image-preview');
+  const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
 
   const modelOptions = [
     { value: 'gemini-3.1-flash-image-preview', label: 'Nano Banana 2', description: 'Gemini 3.1 Flash' },
@@ -149,11 +164,11 @@ export default function Home() {
     fullPrompt: string,
     variationIndex: number,
     referenceImages: Array<{data: string; mimeType: string}>
-  ): Promise<GeneratedImage | null> => {
+  ): Promise<{ image: GeneratedImage | null; usage: { promptTokenCount: number; candidatesTokenCount: number; totalTokenCount: number } | null }> => {
     try {
       let result;
       const promptWithVariation = variationIndex > 0 ? `${fullPrompt} (variation ${variationIndex + 1})` : fullPrompt;
-      
+
       if (referenceImages.length > 0) {
         const contentParts = [
           ...referenceImages.map(img => ({
@@ -170,6 +185,11 @@ export default function Home() {
       }
 
       const response = result.response;
+      const usage = response.usageMetadata ? {
+        promptTokenCount: response.usageMetadata.promptTokenCount ?? 0,
+        candidatesTokenCount: response.usageMetadata.candidatesTokenCount ?? 0,
+        totalTokenCount: response.usageMetadata.totalTokenCount ?? 0,
+      } : null;
       const candidates = response.candidates;
 
       if (candidates && candidates.length > 0) {
@@ -178,12 +198,13 @@ export default function Home() {
           if ((part as any).inlineData) {
             const inlineData = (part as any).inlineData;
             return {
-              data: inlineData.data,
-              mimeType: inlineData.mimeType,
+              image: { data: inlineData.data, mimeType: inlineData.mimeType },
+              usage,
             };
           }
         }
       }
+      return { image: null, usage };
     } catch (genError) {
       console.error(`Error generating image ${variationIndex + 1}:`, genError);
       const errMsg = genError instanceof Error
@@ -191,7 +212,6 @@ export default function Home() {
         : `Image ${variationIndex + 1}: ${String(genError)}`;
       throw new Error(errMsg);
     }
-    return null;
   };
 
   const generateImages = async () => {
@@ -208,10 +228,11 @@ export default function Home() {
     setError('');
     setGeneratedImages([]);
     setCompletedCount(0);
+    setUsageInfo(null);
 
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
-      
+
       const model = genAI.getGenerativeModel({
         model: selectedModel,
         generationConfig: {
@@ -224,24 +245,50 @@ export default function Home() {
         fullPrompt += ` (aspect ratio: ${aspectRatio})`;
       }
 
+      let totalPromptTokens = 0;
+      let totalCandidatesTokens = 0;
+      let totalTokens = 0;
+      let generatedCount = 0;
+
       // 并发生成所有图像
       const promises = Array.from({ length: imageCount }, (_, i) =>
-        generateSingleImage(model, fullPrompt, i, referenceImages).then(image => {
+        generateSingleImage(model, fullPrompt, i, referenceImages).then(({ image, usage }) => {
           setCompletedCount(prev => prev + 1);
+          if (usage) {
+            totalPromptTokens += usage.promptTokenCount;
+            totalCandidatesTokens += usage.candidatesTokenCount;
+            totalTokens += usage.totalTokenCount;
+          }
           if (image) {
+            generatedCount++;
             setGeneratedImages(prev => [...prev, image]);
           }
-          return image;
+          return { image, usage };
         })
       );
 
       const results = await Promise.allSettled(promises);
+
+      // 计算费用
+      const pricing = MODEL_PRICING[selectedModel];
+      if (pricing && totalTokens > 0) {
+        const inputCost = (totalPromptTokens / 1_000_000) * pricing.input;
+        const outputImageCost = (totalCandidatesTokens / 1_000_000) * pricing.outputImage;
+        setUsageInfo({
+          promptTokenCount: totalPromptTokens,
+          candidatesTokenCount: totalCandidatesTokens,
+          totalTokenCount: totalTokens,
+          imageCount: generatedCount,
+          cost: inputCost + outputImageCost,
+        });
+      }
+
       const errors = results
         .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
         .map(r => r.reason instanceof Error ? `${r.reason.message}\n${r.reason.stack ?? ''}` : String(r.reason));
       const successfulImages = results
-        .filter((r): r is PromiseFulfilledResult<GeneratedImage | null> => r.status === 'fulfilled')
-        .map(r => r.value)
+        .filter((r): r is PromiseFulfilledResult<{ image: GeneratedImage | null; usage: any }> => r.status === 'fulfilled')
+        .map(r => r.value.image)
         .filter((img): img is GeneratedImage => img !== null);
 
       if (successfulImages.length === 0 && errors.length === 0) {
@@ -493,7 +540,18 @@ export default function Home() {
         {/* Generated Images */}
         {generatedImages.length > 0 && (
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <h2 className="text-xl font-semibold mb-4 text-gray-800">生成结果</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">生成结果</h2>
+              {usageInfo && (
+                <div className="text-right text-xs text-gray-500">
+                  <span className="inline-flex items-center gap-1.5 bg-gray-100 rounded-lg px-3 py-1.5">
+                    <span>Tokens: {usageInfo.promptTokenCount.toLocaleString()} in / {usageInfo.candidatesTokenCount.toLocaleString()} out</span>
+                    <span className="text-gray-300">|</span>
+                    <span className="text-green-600 font-medium">${usageInfo.cost.toFixed(4)}</span>
+                  </span>
+                </div>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {generatedImages.map((image, index) => (
                 <div key={index} className="relative group">
