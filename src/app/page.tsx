@@ -19,6 +19,12 @@ export default function Home() {
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [completedCount, setCompletedCount] = useState(0);
   const [showPresetImages, setShowPresetImages] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gemini-3-pro-image-preview');
+
+  const modelOptions = [
+    { value: 'gemini-3.1-flash-image-preview', label: 'Nano Banana 2', description: 'Gemini 3.1 Flash' },
+    { value: 'gemini-3-pro-image-preview', label: 'Nano Banana Pro', description: 'Gemini 3 Pro' },
+  ];
 
   const presetImages = [
     { src: '/presets/pixel-wedding-main.jpg', label: '像素婚礼' },
@@ -77,6 +83,10 @@ export default function Home() {
     if (savedPrompt) {
       setPrompt(savedPrompt);
     }
+    const savedModel = localStorage.getItem('gemini-selected-model');
+    if (savedModel) {
+      setSelectedModel(savedModel);
+    }
   }, []);
 
   // Save API key to localStorage when it changes
@@ -93,6 +103,11 @@ export default function Home() {
   const handlePromptChange = (value: string) => {
     setPrompt(value);
     localStorage.setItem('gemini-last-prompt', value);
+  };
+
+  const handleModelChange = (value: string) => {
+    setSelectedModel(value);
+    localStorage.setItem('gemini-selected-model', value);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,7 +213,7 @@ export default function Home() {
       const genAI = new GoogleGenerativeAI(apiKey);
       
       const model = genAI.getGenerativeModel({
-        model: 'gemini-3-pro-image-preview',
+        model: selectedModel,
         generationConfig: {
           responseModalities: ['image', 'text'],
         } as any,
@@ -268,7 +283,7 @@ export default function Home() {
         <h1 className="text-3xl md:text-4xl font-bold text-center mb-2 text-gray-800">
           Gemini 图像生成器
         </h1>
-        <p className="text-center text-gray-500 mb-8">使用 Gemini 3 Pro Image 生成图像 • 客户端直连</p>
+        <p className="text-center text-gray-500 mb-8">使用 {modelOptions.find(m => m.value === selectedModel)?.label ?? 'Gemini'} 生成图像 • 客户端直连</p>
 
         {/* API Key Input */}
         <div className="bg-white rounded-xl p-6 mb-6 shadow-sm border border-gray-200">
@@ -319,6 +334,31 @@ export default function Home() {
 
         {/* Settings */}
         <div className="bg-white rounded-xl p-6 mb-6 shadow-sm border border-gray-200">
+          {/* Model Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2 text-gray-700">
+              🧠 模型选择
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {modelOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleModelChange(option.value)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition border ${
+                    selectedModel === option.value
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
+                  }`}
+                >
+                  <span>{option.label}</span>
+                  <span className={`ml-1.5 text-xs ${selectedModel === option.value ? 'text-blue-200' : 'text-gray-400'}`}>
+                    {option.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Image Count */}
             <div>
@@ -479,7 +519,7 @@ export default function Home() {
 
         {/* Footer */}
         <p className="text-center text-gray-400 text-sm mt-8">
-          Powered by Gemini 3 Pro Image • 客户端直连无超时限制 ✨
+          Powered by {modelOptions.find(m => m.value === selectedModel)?.label ?? 'Gemini'} • 客户端直连无超时限制 ✨
         </p>
       </div>
 
