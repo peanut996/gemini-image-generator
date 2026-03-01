@@ -59,6 +59,7 @@ export default function Home() {
     { src: '/presets/anime-sticker-2.jpg', label: '二次元贴纸2' },
     { src: '/presets/anime-sticker-girl.jpg', label: '二次元女生' },
     { src: '/presets/chibi-couple.jpg', label: 'Q版情侣' },
+    { src: '/presets/chibi-couple-1.jpg', label: 'Q版证件照' },
   ];
 
   const presetPrompts = [
@@ -562,12 +563,12 @@ export default function Home() {
                   />
                   <button
                     onClick={() => downloadImage(image, index)}
-                    className="absolute bottom-3 right-3 bg-white hover:bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm shadow-md border border-gray-200 opacity-0 group-hover:opacity-100 transition flex items-center gap-2"
+                    className="absolute bottom-3 right-3 bg-white hover:bg-gray-100 text-gray-700 p-2 md:px-4 md:py-2 rounded-lg text-sm shadow-md border border-gray-200 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition flex items-center gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    下载
+                    <span className="hidden md:inline">下载</span>
                   </button>
                 </div>
               ))}
