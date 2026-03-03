@@ -60,6 +60,9 @@ export default function Home() {
     { src: '/presets/anime-sticker-girl.jpg', label: '二次元女生' },
     { src: '/presets/chibi-couple.jpg', label: 'Q版情侣' },
     { src: '/presets/chibi-couple-1.jpg', label: 'Q版证件照' },
+    { src: '/presets/chibi-winter-couple.jpg', label: '双人卡通' },
+    { src: '/presets/chibi-wedding-couple.jpg', label: '双人结婚照' },
+    { src: '/presets/chibi-wedding-dress-couple.jpg', label: '双人婚纱照' },
   ];
 
   const presetPrompts = [
