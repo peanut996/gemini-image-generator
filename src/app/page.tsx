@@ -60,6 +60,9 @@ export default function Home() {
     { src: '/presets/anime-sticker-girl.jpg', label: '二次元女生' },
     { src: '/presets/chibi-couple.jpg', label: 'Q版情侣' },
     { src: '/presets/chibi-couple-1.jpg', label: 'Q版证件照' },
+    { src: '/presets/chibi-winter-couple.jpg', label: '双人卡通' },
+    { src: '/presets/chibi-wedding-couple.jpg', label: '双人结婚照' },
+    { src: '/presets/chibi-wedding-dress-couple.jpg', label: '双人婚纱照' },
   ];
 
   const presetPrompts = [
@@ -86,6 +89,10 @@ export default function Home() {
     {
       label: '👾 像素精简版',
       prompt: 'refer to image 2, convert image 1 into a pixel art. Try to use as few pixels as possible.尽可能精简的同时，保留动作和特征',
+    },
+    {
+      label: '❄️ 双人卡通',
+      prompt: '把图一转换成可爱双人卡通/二次元贴纸风：冬季雪景氛围，白色贴纸描边，人物大眼睛和柔和笑容；男生短黑发、脸颊微红、深色外套和蓝色针织围巾；女生长深发、白色毛绒耳罩、黑色外套和浅蓝围巾；背景有飘雪和积雪树木。确保完整保留原图人物关系、动作与服饰细节。',
     },
   ];
 
