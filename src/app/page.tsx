@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 interface GeneratedImage {
   data: string;
@@ -164,31 +164,41 @@ export default function Home() {
   };
 
   const generateSingleImage = async (
-    model: any,
+    ai: GoogleGenAI,
     fullPrompt: string,
     variationIndex: number,
-    referenceImages: Array<{data: string; mimeType: string}>
+    referenceImages: Array<{data: string; mimeType: string}>,
+    selectedModel: string,
+    aspectRatio: string
   ): Promise<{ image: GeneratedImage | null; usage: { promptTokenCount: number; candidatesTokenCount: number; totalTokenCount: number } | null }> => {
     try {
-      let result;
       const promptWithVariation = variationIndex > 0 ? `${fullPrompt} (variation ${variationIndex + 1})` : fullPrompt;
 
-      if (referenceImages.length > 0) {
-        const contentParts = [
-          ...referenceImages.map(img => ({
+      const contents = [{
+        role: 'user',
+        parts: [
+          ...referenceImages.map((img) => ({
             inlineData: {
               data: img.data,
               mimeType: img.mimeType,
             },
           })),
-          promptWithVariation,
-        ];
-        result = await model.generateContent(contentParts);
-      } else {
-        result = await model.generateContent(promptWithVariation);
-      }
+          { text: promptWithVariation },
+        ],
+      }];
 
-      const response = result.response;
+      const response = await ai.models.generateContent({
+        model: selectedModel,
+        contents,
+        config: {
+          responseModalities: ['TEXT', 'IMAGE'],
+          imageConfig: {
+            aspectRatio,
+            outputMimeType: 'image/png',
+          },
+        },
+      });
+
       const usage = response.usageMetadata ? {
         promptTokenCount: response.usageMetadata.promptTokenCount ?? 0,
         candidatesTokenCount: response.usageMetadata.candidatesTokenCount ?? 0,
@@ -197,7 +207,7 @@ export default function Home() {
       const candidates = response.candidates;
 
       if (candidates && candidates.length > 0) {
-        const parts = candidates[0].content.parts;
+        const parts = candidates[0].content?.parts ?? [];
         for (const part of parts) {
           if ((part as any).inlineData) {
             const inlineData = (part as any).inlineData;
@@ -220,7 +230,7 @@ export default function Home() {
 
   const generateImages = async () => {
     if (!apiKey) {
-      setError('请输入 API Key');
+      setError('请输入 Vertex AI API Key');
       return;
     }
     if (!prompt) {
@@ -235,13 +245,9 @@ export default function Home() {
     setUsageInfo(null);
 
     try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-
-      const model = genAI.getGenerativeModel({
-        model: selectedModel,
-        generationConfig: {
-          responseModalities: ['image', 'text'],
-        } as any,
+      const ai = new GoogleGenAI({
+        apiKey,
+        vertexai: true,
       });
 
       let fullPrompt = prompt;
@@ -256,7 +262,7 @@ export default function Home() {
 
       // 并发生成所有图像
       const promises = Array.from({ length: imageCount }, (_, i) =>
-        generateSingleImage(model, fullPrompt, i, referenceImages).then(({ image, usage }) => {
+        generateSingleImage(ai, fullPrompt, i, referenceImages, selectedModel, aspectRatio).then(({ image, usage }) => {
           setCompletedCount(prev => prev + 1);
           if (usage) {
             totalPromptTokens += usage.promptTokenCount;
@@ -336,21 +342,21 @@ export default function Home() {
         </h1>
         <p className="text-center text-gray-500 mb-8">使用 {modelOptions.find(m => m.value === selectedModel)?.label ?? 'Gemini'} 生成图像 • 客户端直连</p>
 
-        {/* API Key Input */}
+        {/* Vertex AI Credentials */}
         <div className="bg-white rounded-xl p-6 mb-6 shadow-sm border border-gray-200">
           <label className="block text-sm font-medium mb-2 text-gray-700">
-            🔑 API Key
+            🔑 Vertex AI API Key
             <span className="text-gray-400 text-xs ml-2">(自动保存到浏览器)</span>
           </label>
           <input
             type="password"
             value={apiKey}
             onChange={(e) => handleApiKeyChange(e.target.value)}
-            placeholder="输入你的 Gemini API Key"
+            placeholder="输入你的 Google Cloud API Key"
             className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-gray-900"
           />
           <p className="text-xs text-gray-400 mt-2">
-            获取 API Key: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">Google AI Studio</a>
+            API Key 请在 Google Cloud Console / Vertex AI 中创建，不再使用 Google AI Studio key。
           </p>
         </div>
 
