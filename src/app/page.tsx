@@ -194,7 +194,6 @@ export default function Home() {
           responseModalities: ['TEXT', 'IMAGE'],
           imageConfig: {
             aspectRatio,
-            outputMimeType: 'image/png',
           },
         },
       });
