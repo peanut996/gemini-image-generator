@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI } from '@google/genai';
 
 interface GeneratedImage {
@@ -35,6 +35,9 @@ export default function Home() {
   const [showPresetImages, setShowPresetImages] = useState(false);
   const [selectedModel, setSelectedModel] = useState('gemini-3-pro-image-preview');
   const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const modelOptions = [
     { value: 'gemini-3.1-flash-image-preview', label: 'Nano Banana 2', description: 'Gemini 3.1 Flash' },
@@ -227,6 +230,18 @@ export default function Home() {
     }
   };
 
+  const stopGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setLoading(false);
+  }, []);
+
   const generateImages = async () => {
     if (!apiKey) {
       setError('请输入 Vertex AI API Key');
@@ -237,11 +252,22 @@ export default function Home() {
       return;
     }
 
+    // 初始化 AbortController
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setLoading(true);
     setError('');
     setGeneratedImages([]);
     setCompletedCount(0);
     setUsageInfo(null);
+    setElapsedTime(0);
+
+    // 启动计时器
+    const startTime = Date.now();
+    timerRef.current = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
 
     try {
       const ai = new GoogleGenAI({
@@ -261,6 +287,7 @@ export default function Home() {
       // 并发生成所有图像
       const promises = Array.from({ length: imageCount }, (_, i) =>
         generateSingleImage(ai, fullPrompt, i, referenceImages, selectedModel, aspectRatio).then(({ image, usage }) => {
+          if (abortController.signal.aborted) throw new DOMException('Aborted', 'AbortError');
           setCompletedCount(prev => prev + 1);
           if (usage) {
             totalPromptTokens += usage.promptTokenCount;
@@ -276,6 +303,9 @@ export default function Home() {
       );
 
       const results = await Promise.allSettled(promises);
+
+      // 如果已被中止，不再处理后续逻辑
+      if (abortController.signal.aborted) return;
 
       // 计算费用
       const pricing = MODEL_PRICING[selectedModel];
@@ -293,7 +323,11 @@ export default function Home() {
 
       const errors = results
         .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-        .map(r => r.reason instanceof Error ? `${r.reason.message}\n${r.reason.stack ?? ''}` : String(r.reason));
+        .map(r => {
+          if (r.reason instanceof DOMException && r.reason.name === 'AbortError') return null;
+          return r.reason instanceof Error ? `${r.reason.message}\n${r.reason.stack ?? ''}` : String(r.reason);
+        })
+        .filter((e): e is string => e !== null);
       const successfulImages = results
         .filter((r): r is PromiseFulfilledResult<{ image: GeneratedImage | null; usage: any }> => r.status === 'fulfilled')
         .map(r => r.value.image)
@@ -305,9 +339,15 @@ export default function Home() {
         setError(errors.join('\n\n'));
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       console.error('Generation error:', err);
       setError(err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : '生成失败');
     } finally {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      abortControllerRef.current = null;
       setLoading(false);
     }
   };
@@ -510,28 +550,39 @@ export default function Home() {
         </div>
 
         {/* Generate Button */}
-        <button
-          onClick={generateImages}
-          disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] mb-6 shadow-sm"
-        >
-          {loading ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              生成中... {completedCount}/{imageCount}
-            </span>
-          ) : (
-            '🚀 生成图像'
+        <div className="flex gap-3 mb-6">
+          <button
+            onClick={generateImages}
+            disabled={loading}
+            className={`flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-sm`}
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                生成中... {completedCount}/{imageCount}
+                <span className="text-blue-200 text-sm">({Math.floor(elapsedTime / 60)}:{String(elapsedTime % 60).padStart(2, '0')})</span>
+              </span>
+            ) : (
+              '🚀 生成图像'
+            )}
+          </button>
+          {loading && (
+            <button
+              onClick={stopGeneration}
+              className="bg-red-500 hover:bg-red-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+            >
+              ⏹ 停止
+            </button>
           )}
-        </button>
+        </div>
 
         {/* Progress Bar */}
         {loading && (
           <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
-            <div 
+            <div
               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${(completedCount / imageCount) * 100}%` }}
             />
