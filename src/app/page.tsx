@@ -25,7 +25,7 @@ const MODEL_PRICING: Record<string, { input: number; outputText: number; outputI
 export default function Home() {
   const [apiKey, setApiKey] = useState('');
   const [prompt, setPrompt] = useState('');
-  const [referenceImages, setReferenceImages] = useState<Array<{data: string; mimeType: string}>>([]);
+  const [referenceImages, setReferenceImages] = useState<Array<{ data: string; mimeType: string }>>([]);
   const [imageCount, setImageCount] = useState(1);
   const [loading, setLoading] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
@@ -170,7 +170,7 @@ export default function Home() {
     ai: GoogleGenAI,
     fullPrompt: string,
     variationIndex: number,
-    referenceImages: Array<{data: string; mimeType: string}>,
+    referenceImages: Array<{ data: string; mimeType: string }>,
     selectedModel: string,
     aspectRatio: string
   ): Promise<{ image: GeneratedImage | null; usage: { promptTokenCount: number; candidatesTokenCount: number; totalTokenCount: number } | null }> => {
@@ -272,6 +272,7 @@ export default function Home() {
     try {
       const ai = new GoogleGenAI({
         apiKey,
+        vertexai: true
       });
 
       let fullPrompt = prompt;
@@ -361,7 +362,7 @@ export default function Home() {
     }
     const byteArray = new Uint8Array(byteNumbers);
     const blob = new Blob([byteArray], { type: image.mimeType });
-    
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -439,11 +440,10 @@ export default function Home() {
                 <button
                   key={option.value}
                   onClick={() => handleModelChange(option.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition border ${
-                    selectedModel === option.value
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition border ${selectedModel === option.value
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <span>{option.label}</span>
                   <span className={`ml-1.5 text-xs ${selectedModel === option.value ? 'text-blue-200' : 'text-gray-400'}`}>
