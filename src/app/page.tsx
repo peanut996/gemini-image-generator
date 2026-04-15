@@ -272,7 +272,8 @@ export default function Home() {
     try {
       const ai = new GoogleGenAI({
         apiKey,
-        vertexai: true
+        vertexai: true,
+        location: 'us-central1'
       });
 
       let fullPrompt = prompt;
