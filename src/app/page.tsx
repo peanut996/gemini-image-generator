@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, type Part } from '@google/genai';
 
 interface GeneratedImage {
   data: string;
@@ -14,6 +14,12 @@ interface UsageInfo {
   totalTokenCount: number;
   imageCount: number;
   cost: number;
+}
+
+interface GenerationUsage {
+  promptTokenCount: number;
+  candidatesTokenCount: number;
+  totalTokenCount: number;
 }
 
 // 定价表 (USD per 1M tokens)
@@ -173,7 +179,7 @@ export default function Home() {
     referenceImages: Array<{ data: string; mimeType: string }>,
     selectedModel: string,
     aspectRatio: string
-  ): Promise<{ image: GeneratedImage | null; usage: { promptTokenCount: number; candidatesTokenCount: number; totalTokenCount: number } | null }> => {
+  ): Promise<{ image: GeneratedImage | null; usage: GenerationUsage | null }> => {
     try {
       const promptWithVariation = variationIndex > 0 ? `${fullPrompt} (variation ${variationIndex + 1})` : fullPrompt;
 
@@ -205,14 +211,14 @@ export default function Home() {
         promptTokenCount: response.usageMetadata.promptTokenCount ?? 0,
         candidatesTokenCount: response.usageMetadata.candidatesTokenCount ?? 0,
         totalTokenCount: response.usageMetadata.totalTokenCount ?? 0,
-      } : null;
+      } satisfies GenerationUsage : null;
       const candidates = response.candidates;
 
       if (candidates && candidates.length > 0) {
-        const parts = candidates[0].content?.parts ?? [];
+        const parts: Part[] = candidates[0].content?.parts ?? [];
         for (const part of parts) {
-          if ((part as any).inlineData) {
-            const inlineData = (part as any).inlineData;
+          const inlineData = part.inlineData;
+          if (inlineData?.data && inlineData.mimeType) {
             return {
               image: { data: inlineData.data, mimeType: inlineData.mimeType },
               usage,
@@ -273,7 +279,6 @@ export default function Home() {
       const ai = new GoogleGenAI({
         apiKey,
         vertexai: true,
-        location: 'us-central1'
       });
 
       let fullPrompt = prompt;
@@ -331,7 +336,7 @@ export default function Home() {
         })
         .filter((e): e is string => e !== null);
       const successfulImages = results
-        .filter((r): r is PromiseFulfilledResult<{ image: GeneratedImage | null; usage: any }> => r.status === 'fulfilled')
+        .filter((r): r is PromiseFulfilledResult<{ image: GeneratedImage | null; usage: GenerationUsage | null }> => r.status === 'fulfilled')
         .map(r => r.value.image)
         .filter((img): img is GeneratedImage => img !== null);
 
@@ -396,7 +401,7 @@ export default function Home() {
             className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-gray-900"
           />
           <p className="text-xs text-gray-400 mt-2">
-            API Key 请在 Google Cloud Console / Vertex AI 中创建，不再使用 Google AI Studio key。
+            浏览器直连仅支持 API Key 模式，不要再提供 project 或 location。API Key 请在 Google Cloud Console / Vertex AI 中创建。
           </p>
         </div>
 
